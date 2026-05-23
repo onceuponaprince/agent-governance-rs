@@ -3,7 +3,7 @@ use agent_governance_core::{
     load_council_pack_from_path, persona_catalog_from_pack, planned_fanout, ContextEnvelopeRequest,
     CouncilPack, FanoutRequest,
 };
-use agent_governance_server::{serve, AppConfig};
+use agent_governance_server::{serve, sqlite_database_url, AppConfig, DEFAULT_BIND_ADDR};
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 use std::{fs, net::SocketAddr, path::PathBuf};
@@ -67,9 +67,9 @@ enum FanoutCommand {
 
 #[derive(Debug, Parser)]
 struct ServerArgs {
-    #[arg(long, default_value = "127.0.0.1:8787")]
+    #[arg(long, default_value = DEFAULT_BIND_ADDR)]
     bind: SocketAddr,
-    #[arg(long)]
+    #[arg(long, env = "AGENT_GOV_DB")]
     db: Option<PathBuf>,
     #[arg(long, env = "AGENT_GOV_TOKEN")]
     token: Option<String>,
@@ -113,7 +113,7 @@ async fn main() -> anyhow::Result<()> {
             tracing_subscriber::fmt()
                 .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
                 .init();
-            let database_url = args.db.map(|path| format!("sqlite://{}", path.display()));
+            let database_url = args.db.map(sqlite_database_url);
             let context_secret = args
                 .context_secret
                 .or_else(|| args.token.clone())

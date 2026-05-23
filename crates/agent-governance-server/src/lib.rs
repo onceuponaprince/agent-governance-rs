@@ -20,10 +20,22 @@ use sqlx::{
     sqlite::{SqliteConnectOptions, SqlitePoolOptions},
     SqlitePool,
 };
-use std::{collections::BTreeMap, net::SocketAddr, path::PathBuf, str::FromStr, sync::Arc};
+use std::{
+    collections::BTreeMap,
+    net::SocketAddr,
+    path::{Path as FsPath, PathBuf},
+    str::FromStr,
+    sync::Arc,
+};
 use tokio::sync::Mutex;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use uuid::Uuid;
+
+pub const DEFAULT_BIND_ADDR: &str = "127.0.0.1:9797";
+
+pub fn sqlite_database_url(path: impl AsRef<FsPath>) -> String {
+    format!("sqlite://{}", path.as_ref().display())
+}
 
 #[derive(Clone)]
 pub struct AppConfig {
@@ -470,27 +482,17 @@ fn markdown(body: String) -> (StatusCode, [(header::HeaderName, &'static str); 1
     )
 }
 
+const TABLE_SCHEMAS: &[&str] = &[
+    "create table if not exists deliberations (id text not null, json text not null, report_md text not null, created_at text not null)",
+    "create table if not exists context_envelopes (id text not null, json text not null, created_at text not null)",
+    "create table if not exists memory_events (id text not null, json text not null, created_at text not null)",
+    "create table if not exists tool_events (id text not null, json text not null, created_at text not null)",
+    "create table if not exists repair_plans (id text not null, json text not null, created_at text not null)",
+    "create table if not exists fanout_plans (id text not null, json text not null, created_at text not null)",
+];
+
 async fn init_db(pool: &SqlitePool) -> anyhow::Result<()> {
-    for table in [
-        "deliberations",
-        "context_envelopes",
-        "memory_events",
-        "tool_events",
-        "repair_plans",
-        "fanout_plans",
-    ] {
-        let sql = if table == "deliberations" {
-            "create table if not exists deliberations (id text not null, json text not null, report_md text not null, created_at text not null)"
-        } else {
-            match table {
-                "context_envelopes" => "create table if not exists context_envelopes (id text not null, json text not null, created_at text not null)",
-                "memory_events" => "create table if not exists memory_events (id text not null, json text not null, created_at text not null)",
-                "tool_events" => "create table if not exists tool_events (id text not null, json text not null, created_at text not null)",
-                "repair_plans" => "create table if not exists repair_plans (id text not null, json text not null, created_at text not null)",
-                "fanout_plans" => "create table if not exists fanout_plans (id text not null, json text not null, created_at text not null)",
-                _ => unreachable!(),
-            }
-        };
+    for sql in TABLE_SCHEMAS {
         sqlx::query(sql).execute(pool).await?;
     }
     Ok(())
@@ -549,4 +551,28 @@ fn internal_error(err: impl std::fmt::Display) -> ApiError {
         "internal_error",
         err.to_string(),
     )
+}
+
+#[cfg(test)]
+mod server_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn sqlite_database_is_created_when_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        let db_path = dir.path().join("fresh.sqlite");
+        assert!(!db_path.exists());
+
+        let _router = app(AppConfig {
+            token: None,
+            dev_no_auth: true,
+            context_secret: "test-secret".to_string(),
+            database_url: Some(sqlite_database_url(&db_path)),
+            council_pack_path: None,
+        })
+        .await
+        .unwrap();
+
+        assert!(db_path.exists());
+    }
 }

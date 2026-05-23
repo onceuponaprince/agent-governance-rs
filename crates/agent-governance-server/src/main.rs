@@ -1,4 +1,4 @@
-use agent_governance_server::{serve, AppConfig};
+use agent_governance_server::{serve, sqlite_database_url, AppConfig, DEFAULT_BIND_ADDR};
 use clap::Parser;
 use std::{net::SocketAddr, path::PathBuf};
 
@@ -6,7 +6,7 @@ use std::{net::SocketAddr, path::PathBuf};
 #[command(name = "agent-governance-server")]
 #[command(about = "HTTP server for agent-governance-rs")]
 struct Args {
-    #[arg(long, default_value = "127.0.0.1:8787")]
+    #[arg(long, default_value = DEFAULT_BIND_ADDR)]
     bind: SocketAddr,
     #[arg(long, env = "AGENT_GOV_DB")]
     db: Option<PathBuf>,
@@ -26,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
     let args = Args::parse();
-    let database_url = args.db.map(|path| format!("sqlite://{}", path.display()));
+    let database_url = args.db.map(sqlite_database_url);
     let context_secret = args
         .context_secret
         .or_else(|| args.token.clone())
