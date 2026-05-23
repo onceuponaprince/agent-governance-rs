@@ -4,7 +4,7 @@ use agent_governance_core::{
     persona_catalog_from_pack, planned_fanout, rank_tools, record_tool_result,
     render_council_report, render_fanout_report, stale_memory_facts, tool_state, ContextEnvelope,
     ContextEnvelopeRequest, ContextVerifyResponse, CouncilPack, FanoutRun, MemoryStore, RepairPlan,
-    ToolStore,
+    ToolStore, DEV_BEARER_TOKEN, DEV_CONTEXT_SECRET,
 };
 use axum::{
     extract::{Path, Query, State},
@@ -31,6 +31,9 @@ use tokio::sync::Mutex;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use uuid::Uuid;
 
+use sha2::{Digest, Sha256};
+use subtle::ConstantTimeEq;
+
 pub const DEFAULT_BIND_ADDR: &str = "127.0.0.1:9797";
 
 pub fn sqlite_database_url(path: impl AsRef<FsPath>) -> String {
@@ -41,9 +44,84 @@ pub fn sqlite_database_url(path: impl AsRef<FsPath>) -> String {
 pub struct AppConfig {
     pub token: Option<String>,
     pub dev_no_auth: bool,
+    pub dev_mode: bool,
     pub context_secret: String,
     pub database_url: Option<String>,
     pub council_pack_path: Option<PathBuf>,
+}
+
+pub fn validate_app_config(config: &AppConfig) -> anyhow::Result<()> {
+    if config.dev_no_auth && !config.dev_mode {
+        anyhow::bail!(
+            "`--dev-no-auth` requires dev mode (`--dev` or AGENT_GOV_DEV=1)"
+        );
+    }
+    if !config.dev_mode {
+        if config.context_secret == DEV_CONTEXT_SECRET {
+            anyhow::bail!(
+                "refusing default signing secret {:?}; pass `--dev` or set secrets explicitly",
+                DEV_CONTEXT_SECRET,
+            );
+        }
+        if config.token.as_deref() == Some(DEV_BEARER_TOKEN) {
+            anyhow::bail!(
+                "refusing default bearer token {:?}; pass `--dev` or set AGENT_GOV_TOKEN",
+                DEV_BEARER_TOKEN,
+            );
+        }
+    }
+    Ok(())
+}
+
+#[derive(Clone, Copy)]
+enum JsonSnapshotTable {
+    ContextEnvelopes,
+    MemoryEvents,
+    ToolEvents,
+    RepairPlans,
+    FanoutPlans,
+}
+
+impl JsonSnapshotTable {
+    const fn insert_sql(self) -> &'static str {
+        match self {
+            JsonSnapshotTable::ContextEnvelopes => {
+                "insert into context_envelopes (id, json, created_at) values (?1, ?2, ?3)"
+            }
+            JsonSnapshotTable::MemoryEvents => {
+                "insert into memory_events (id, json, created_at) values (?1, ?2, ?3)"
+            }
+            JsonSnapshotTable::ToolEvents => {
+                "insert into tool_events (id, json, created_at) values (?1, ?2, ?3)"
+            }
+            JsonSnapshotTable::RepairPlans => {
+                "insert into repair_plans (id, json, created_at) values (?1, ?2, ?3)"
+            }
+            JsonSnapshotTable::FanoutPlans => {
+                "insert into fanout_plans (id, json, created_at) values (?1, ?2, ?3)"
+            }
+        }
+    }
+
+    const fn select_sql(self) -> &'static str {
+        match self {
+            JsonSnapshotTable::ContextEnvelopes => {
+                "select json from context_envelopes where id = ?1 order by rowid desc limit 1"
+            }
+            JsonSnapshotTable::MemoryEvents => {
+                "select json from memory_events where id = ?1 order by rowid desc limit 1"
+            }
+            JsonSnapshotTable::ToolEvents => {
+                "select json from tool_events where id = ?1 order by rowid desc limit 1"
+            }
+            JsonSnapshotTable::RepairPlans => {
+                "select json from repair_plans where id = ?1 order by rowid desc limit 1"
+            }
+            JsonSnapshotTable::FanoutPlans => {
+                "select json from fanout_plans where id = ?1 order by rowid desc limit 1"
+            }
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -101,6 +179,14 @@ impl IntoResponse for ApiError {
 }
 
 pub async fn app(config: AppConfig) -> anyhow::Result<Router> {
+    validate_app_config(&config)?;
+    let dev_mode = config.dev_mode;
+    let cors_layer = if dev_mode {
+        CorsLayer::permissive()
+    } else {
+        CorsLayer::new()
+    };
+
     let council_pack = if let Some(path) = &config.council_pack_path {
         load_council_pack_from_path(path)?
     } else {
@@ -151,7 +237,7 @@ pub async fn app(config: AppConfig) -> anyhow::Result<Router> {
         .route("/v1/fanout/plans/{id}", get(get_fanout_plan))
         .route("/v1/fanout/plans/{id}/report.md", get(get_fanout_report))
         .with_state(state)
-        .layer(CorsLayer::permissive())
+        .layer(cors_layer)
         .layer(TraceLayer::new_for_http()))
 }
 
@@ -278,7 +364,7 @@ async fn create_envelope(
     let envelope = create_context_envelope(req, &state.config.context_secret).map_err(|err| {
         ApiError::new(StatusCode::BAD_REQUEST, "invalid_envelope", err.to_string())
     })?;
-    persist_json(&state, "context_envelopes", &envelope.id, &envelope).await?;
+    persist_json(&state, JsonSnapshotTable::ContextEnvelopes, &envelope.id, &envelope).await?;
     Ok(Json(json!({ "envelope": envelope })))
 }
 
@@ -309,7 +395,7 @@ async fn create_memory_fact(
         let mut memory = state.memory.lock().await;
         add_memory_fact(&mut memory, req)
     };
-    persist_json(&state, "memory_events", &record.id, &record).await?;
+    persist_json(&state, JsonSnapshotTable::MemoryEvents, &record.id, &record).await?;
     Ok(Json(json!({ "fact": record })))
 }
 
@@ -342,7 +428,7 @@ async fn create_memory_invalidation(
         let mut memory = state.memory.lock().await;
         invalidate_source(&mut memory, req)
     };
-    persist_json(&state, "memory_events", &record.id, &record).await?;
+    persist_json(&state, JsonSnapshotTable::MemoryEvents, &record.id, &record).await?;
     Ok(Json(json!({ "invalidation": record })))
 }
 
@@ -356,7 +442,7 @@ async fn create_tool_result(
         let mut tools = state.tools.lock().await;
         record_tool_result(&mut tools, req)
     };
-    persist_json(&state, "tool_events", &state_record.name, &state_record).await?;
+    persist_json(&state, JsonSnapshotTable::ToolEvents, &state_record.name, &state_record).await?;
     Ok(Json(json!({ "state": state_record })))
 }
 
@@ -394,7 +480,7 @@ async fn create_repair_plan_route(
 ) -> Result<Json<Value>, ApiError> {
     require_auth(&state, &headers)?;
     let plan: RepairPlan = create_repair_plan(req);
-    persist_json(&state, "repair_plans", &plan.id, &plan).await?;
+    persist_json(&state, JsonSnapshotTable::RepairPlans, &plan.id, &plan).await?;
     Ok(Json(json!({ "plan": plan })))
 }
 
@@ -410,7 +496,7 @@ async fn create_fanout_plan(
         .lock()
         .await
         .insert(run.run_id.clone(), run.clone());
-    persist_json(&state, "fanout_plans", &run.run_id, &run).await?;
+    persist_json(&state, JsonSnapshotTable::FanoutPlans, &run.run_id, &run).await?;
     Ok(Json(json!({ "plan": run })))
 }
 
@@ -423,7 +509,7 @@ async fn get_fanout_plan(
     if let Some(run) = state.fanouts.lock().await.get(&id).cloned() {
         return Ok(Json(json!({ "plan": run })));
     }
-    let run: FanoutRun = load_json(&state, "fanout_plans", &id).await?;
+    let run: FanoutRun = load_json(&state, JsonSnapshotTable::FanoutPlans, &id).await?;
     Ok(Json(json!({ "plan": run })))
 }
 
@@ -436,7 +522,7 @@ async fn get_fanout_report(
     if let Some(run) = state.fanouts.lock().await.get(&id).cloned() {
         return Ok(markdown(render_fanout_report(&run)));
     }
-    let run: FanoutRun = load_json(&state, "fanout_plans", &id).await?;
+    let run: FanoutRun = load_json(&state, JsonSnapshotTable::FanoutPlans, &id).await?;
     Ok(markdown(render_fanout_report(&run)))
 }
 
@@ -456,7 +542,7 @@ fn require_auth(state: &AppState, headers: &HeaderMap) -> Result<(), ApiError> {
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.strip_prefix("Bearer "))
         .unwrap_or("");
-    if constant_time_eq(supplied.as_bytes(), expected.as_bytes()) {
+    if bearer_utf8_matches_constant_time(supplied, expected) {
         Ok(())
     } else {
         Err(ApiError::new(
@@ -467,11 +553,10 @@ fn require_auth(state: &AppState, headers: &HeaderMap) -> Result<(), ApiError> {
     }
 }
 
-fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-    if a.len() != b.len() {
-        return false;
-    }
-    a.iter().zip(b).fold(0, |acc, (x, y)| acc | (x ^ y)) == 0
+fn bearer_utf8_matches_constant_time(a: &str, b: &str) -> bool {
+    bool::from(
+        Sha256::digest(a.as_bytes()).ct_eq(&Sha256::digest(b.as_bytes())),
+    )
 }
 
 fn markdown(body: String) -> (StatusCode, [(header::HeaderName, &'static str); 1], String) {
@@ -500,13 +585,12 @@ async fn init_db(pool: &SqlitePool) -> anyhow::Result<()> {
 
 async fn persist_json<T: Serialize>(
     state: &AppState,
-    table: &'static str,
+    table: JsonSnapshotTable,
     id: &str,
     value: &T,
 ) -> Result<(), ApiError> {
     if let Some(db) = &state.db {
-        let sql = format!("insert into {table} (id, json, created_at) values (?1, ?2, ?3)");
-        sqlx::query(&sql)
+        sqlx::query(table.insert_sql())
             .bind(id)
             .bind(serde_json::to_string(value).map_err(internal_error)?)
             .bind(Utc::now().to_rfc3339())
@@ -519,7 +603,7 @@ async fn persist_json<T: Serialize>(
 
 async fn load_json<T: for<'de> Deserialize<'de>>(
     state: &AppState,
-    table: &'static str,
+    table: JsonSnapshotTable,
     id: &str,
 ) -> Result<T, ApiError> {
     let db = state.db.as_ref().ok_or_else(|| {
@@ -529,8 +613,7 @@ async fn load_json<T: for<'de> Deserialize<'de>>(
             format!("unknown id: {id}"),
         )
     })?;
-    let sql = format!("select json from {table} where id = ?1 order by rowid desc limit 1");
-    let json_text = sqlx::query_scalar::<_, String>(&sql)
+    let json_text = sqlx::query_scalar::<_, String>(table.select_sql())
         .bind(id)
         .fetch_optional(db)
         .await
@@ -546,10 +629,11 @@ async fn load_json<T: for<'de> Deserialize<'de>>(
 }
 
 fn internal_error(err: impl std::fmt::Display) -> ApiError {
+    tracing::error!(detail = %err, "internal error");
     ApiError::new(
         StatusCode::INTERNAL_SERVER_ERROR,
         "internal_error",
-        err.to_string(),
+        "an internal error occurred".to_string(),
     )
 }
 
@@ -566,6 +650,7 @@ mod server_tests {
         let _router = app(AppConfig {
             token: None,
             dev_no_auth: true,
+            dev_mode: true,
             context_secret: "test-secret".to_string(),
             database_url: Some(sqlite_database_url(&db_path)),
             council_pack_path: None,
