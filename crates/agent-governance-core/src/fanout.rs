@@ -76,6 +76,7 @@ pub struct FanoutConsensus {
 
 pub fn planned_fanout(req: FanoutRequest) -> FanoutRun {
     let created_at = Utc::now();
+    let prompt_sha256 = sha256_text(&req.prompt);
     let results: Vec<_> = req
         .sources
         .iter()
@@ -93,7 +94,7 @@ pub fn planned_fanout(req: FanoutRequest) -> FanoutRun {
                 "provider": source.provider,
                 "workspace": source.workspace,
                 "model": source.model,
-                "prompt_sha256": sha256_text(&req.prompt),
+                "prompt_sha256": prompt_sha256,
                 "execution": "adapter-driven outside core crate"
             })),
         })

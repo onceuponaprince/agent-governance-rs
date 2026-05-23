@@ -1,7 +1,11 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::{collections::BTreeSet, fs, path::Path};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::Path,
+};
 use uuid::Uuid;
 
 const DEFAULT_COUNCIL_PACK_JSON: &str = include_str!("default_council.json");
@@ -522,11 +526,11 @@ fn default_consensus_threshold() -> f32 {
 
 fn selected_domain(req: &CouncilRequest, pack: &CouncilPack) -> Result<String, CouncilError> {
     if let Some(domain) = &req.domain {
-        return Ok(domain.clone());
+        return Ok(normalize_name(domain));
     }
     pack.domains
         .first()
-        .map(|domain| domain.name.clone())
+        .map(|domain| normalize_name(&domain.name))
         .ok_or(CouncilError::NoDomains)
 }
 
@@ -551,7 +555,11 @@ fn resolve_members(
             .clone()
             .or_else(|| base.and_then(|m| m.llm.clone()));
         let fallback_llm = req.default_llm.clone().or_else(|| pack.default_llm.clone());
-        let request_target = req.targets.get(idx % req.targets.len().max(1)).cloned();
+        let request_target = if req.targets.is_empty() {
+            None
+        } else {
+            req.targets.get(idx % req.targets.len()).cloned()
+        };
         let target = spec
             .target
             .clone()
@@ -605,10 +613,11 @@ fn resolve_members(
 }
 
 fn llm_target(name: &str, pack: &CouncilPack, req: &CouncilRequest) -> Option<CouncilTarget> {
+    let key = normalize_name(name);
     req.llms
         .iter()
         .chain(pack.llms.iter())
-        .find(|profile| profile.name == name)
+        .find(|profile| normalize_name(&profile.name) == key)
         .map(|profile| CouncilTarget {
             lane: profile.lane.clone(),
             name: Some(profile.name.clone()),
@@ -743,11 +752,14 @@ fn render_template(
 
 fn build_consensus(req: &CouncilRequest, members: &[CouncilMember]) -> CouncilConsensus {
     let member_names: BTreeSet<_> = members.iter().map(|m| m.name.as_str()).collect();
-    let usable_positions: Vec<_> = req
-        .positions
-        .iter()
-        .filter(|p| member_names.contains(normalize_name(&p.member).as_str()))
-        .collect();
+    let mut usable_by_member = BTreeMap::new();
+    for position in &req.positions {
+        let member = normalize_name(&position.member);
+        if member_names.contains(member.as_str()) {
+            usable_by_member.insert(member, position);
+        }
+    }
+    let usable_positions: Vec<_> = usable_by_member.values().copied().collect();
     let yes_count = usable_positions
         .iter()
         .filter(|p| vote_is_yes(p.vote.as_deref()))
@@ -1059,6 +1071,57 @@ mod tests {
         assert_eq!(
             run.consensus.dissent,
             vec!["feynman: No smoke test evidence."]
+        );
+    }
+
+    #[test]
+    fn duplicate_positions_use_latest_member_position() {
+        let req = CouncilRequest {
+            title: None,
+            problem: "Ship?".to_string(),
+            mode: CouncilMode::Duo,
+            domain: Some("Architecture".to_string()),
+            members: None,
+            llms: vec![],
+            default_llm: None,
+            targets: vec![],
+            consensus_threshold: 0.67,
+            positions: vec![
+                CouncilMemberPosition {
+                    member: "aristotle".to_string(),
+                    position: "Earlier yes.".to_string(),
+                    vote: Some("yes".to_string()),
+                    confidence: None,
+                    dissent: vec![],
+                    unresolved_questions: vec![],
+                },
+                CouncilMemberPosition {
+                    member: "aristotle".to_string(),
+                    position: "Latest no.".to_string(),
+                    vote: Some("no".to_string()),
+                    confidence: None,
+                    dissent: vec!["Changed after reviewing risk.".to_string()],
+                    unresolved_questions: vec![],
+                },
+                CouncilMemberPosition {
+                    member: "ada".to_string(),
+                    position: "Yes behind interface.".to_string(),
+                    vote: Some("yes".to_string()),
+                    confidence: None,
+                    dissent: vec![],
+                    unresolved_questions: vec![],
+                },
+            ],
+        };
+
+        let run = deliberate(req).unwrap();
+
+        assert_eq!(run.domain, "architecture");
+        assert_eq!(run.consensus.agreement_ratio, 0.5);
+        assert!(!run.consensus.reached);
+        assert_eq!(
+            run.consensus.dissent,
+            vec!["aristotle: Changed after reviewing risk."]
         );
     }
 }

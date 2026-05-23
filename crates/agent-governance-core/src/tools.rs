@@ -93,18 +93,15 @@ pub fn record_tool_result(store: &mut ToolStore, req: ToolResultRequest) -> Tool
 }
 
 pub fn tool_state(store: &ToolStore, name: &str) -> ToolState {
-    let events: Vec<_> = store
-        .events
-        .iter()
-        .filter(|event| event.name == name)
-        .collect();
+    let mut total = 0usize;
     let mut failures = 0usize;
     let mut successes = 0usize;
-    let mut latencies = Vec::new();
-    let mut costs = Vec::new();
-    let mut risks = Vec::new();
+    let mut latency_sum = 0f64;
+    let mut cost_sum = 0f64;
+    let mut risk_sum = 0f64;
     let mut quarantined = false;
-    for event in &events {
+    for event in store.events.iter().filter(|event| event.name == name) {
+        total += 1;
         if event.ok {
             successes += 1;
             if event.probe {
@@ -114,21 +111,21 @@ pub fn tool_state(store: &ToolStore, name: &str) -> ToolState {
         } else {
             failures += 1;
         }
-        latencies.push(event.latency_ms as f64);
-        costs.push(event.cost);
-        risks.push(event.risk);
+        latency_sum += event.latency_ms as f64;
+        cost_sum += event.cost;
+        risk_sum += event.risk;
         if failures >= store.failure_threshold.max(1) {
             quarantined = true;
         }
     }
-    let total = events.len();
+    let divisor = total.max(1) as f64;
     ToolState {
         name: name.to_string(),
         events: total,
-        success_rate: round(successes as f64 / total.max(1) as f64, 4),
-        avg_latency_ms: (!latencies.is_empty()).then(|| round(avg(&latencies), 2)),
-        avg_cost: round(avg(&costs), 6),
-        avg_risk: round(avg(&risks), 4),
+        success_rate: round(successes as f64 / divisor, 4),
+        avg_latency_ms: (total > 0).then(|| round(latency_sum / divisor, 2)),
+        avg_cost: round(cost_sum / divisor, 6),
+        avg_risk: round(risk_sum / divisor, 4),
         consecutive_failures: failures,
         quarantined,
     }
@@ -167,14 +164,6 @@ pub fn rank_tools(store: &ToolStore, session_type: &str) -> Vec<RankedTool> {
             .then_with(|| a.state.name.cmp(&b.state.name))
     });
     ranked
-}
-
-fn avg(values: &[f64]) -> f64 {
-    if values.is_empty() {
-        0.0
-    } else {
-        values.iter().sum::<f64>() / values.len() as f64
-    }
 }
 
 fn round(value: f64, digits: i32) -> f64 {
