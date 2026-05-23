@@ -104,10 +104,8 @@ pub fn tool_state(store: &ToolStore, name: &str) -> ToolState {
         total += 1;
         if event.ok {
             successes += 1;
-            if event.probe {
-                failures = 0;
-                quarantined = false;
-            }
+            failures = 0;
+            quarantined = false;
         } else {
             failures += 1;
         }
@@ -209,5 +207,42 @@ mod tests {
             },
         );
         assert!(!tool_state(&store, "run_bash").quarantined);
+    }
+
+    #[test]
+    fn success_without_probe_resets_consecutive_failures() {
+        let mut store = ToolStore {
+            failure_threshold: 2,
+            ..ToolStore::default()
+        };
+        for _ in 0..2 {
+            record_tool_result(
+                &mut store,
+                ToolResultRequest {
+                    name: "api_chat".to_string(),
+                    ok: false,
+                    latency_ms: 10,
+                    cost: 0.0,
+                    risk: 0.1,
+                    probe: false,
+                    error: None,
+                },
+            );
+        }
+        assert!(tool_state(&store, "api_chat").quarantined);
+        record_tool_result(
+            &mut store,
+            ToolResultRequest {
+                name: "api_chat".to_string(),
+                ok: true,
+                latency_ms: 2,
+                cost: 0.0,
+                risk: 0.0,
+                probe: false,
+                error: None,
+            },
+        );
+        assert!(!tool_state(&store, "api_chat").quarantined);
+        assert_eq!(tool_state(&store, "api_chat").consecutive_failures, 0);
     }
 }

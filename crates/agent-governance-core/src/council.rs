@@ -274,7 +274,7 @@ pub fn load_council_pack_from_json(text: &str) -> Result<CouncilPack, CouncilErr
 pub fn load_council_pack_from_markdown(text: &str) -> Result<CouncilPack, CouncilError> {
     let (frontmatter, body) = split_frontmatter(text)?;
     let doc: MarkdownCouncilDoc =
-        serde_yaml::from_str(frontmatter).map_err(|err| CouncilError::Pack(err.to_string()))?;
+        serde_yaml::from_str(&frontmatter).map_err(|err| CouncilError::Pack(err.to_string()))?;
     let mut pack = CouncilPack::default();
     match doc.kind.as_str() {
         "member" => {
@@ -489,14 +489,18 @@ pub fn render_council_report(run: &CouncilRun) -> String {
     lines.join("\n")
 }
 
-fn split_frontmatter(text: &str) -> Result<(&str, &str), CouncilError> {
-    let rest = text.strip_prefix("---\n").ok_or_else(|| {
+fn split_frontmatter(text: &str) -> Result<(String, String), CouncilError> {
+    let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
+    let rest = normalized.strip_prefix("---\n").ok_or_else(|| {
         CouncilError::Pack("markdown council docs require YAML frontmatter".to_string())
     })?;
     let (frontmatter, body) = rest.split_once("\n---").ok_or_else(|| {
         CouncilError::Pack("markdown council docs require closing frontmatter".to_string())
     })?;
-    Ok((frontmatter, body.trim_start_matches(['\n', '\r'])))
+    Ok((
+        frontmatter.to_string(),
+        body.trim_start_matches(|c| c == '\n' || c == '\r').to_string(),
+    ))
 }
 
 fn read_to_string(path: &Path) -> Result<String, CouncilError> {
@@ -942,6 +946,14 @@ mod tests {
     fn markdown_frontmatter_loads_template() {
         let pack = load_council_pack_from_markdown("---\nkind: template\nname: test\nround: independent\nscope: member\nmodes: [quick]\n---\nHello {{member.name}}: {{problem}}\n").unwrap();
         assert_eq!(pack.prompt_templates[0].round, "independent");
+        assert!(pack.prompt_templates[0].template.contains("{{problem}}"));
+    }
+
+    #[test]
+    fn markdown_frontmatter_accepts_crlf() {
+        let text = "---\r\nkind: template\r\nname: crlf-smoke\r\nround: round1\r\nscope: member\r\n---\r\nLine {{problem}}\r\n";
+        let pack = load_council_pack_from_markdown(text).unwrap();
+        assert_eq!(pack.prompt_templates[0].name, "crlf-smoke");
         assert!(pack.prompt_templates[0].template.contains("{{problem}}"));
     }
 

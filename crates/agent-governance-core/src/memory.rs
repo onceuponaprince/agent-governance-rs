@@ -1,5 +1,6 @@
 use crate::context::Sensitivity;
 use crate::redaction::{redact_text, sha256_text};
+use crate::secrets::MEMORY_FACT_MAX_TTL_SECS;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -61,6 +62,10 @@ pub struct MemoryStore {
 
 pub fn add_memory_fact(store: &mut MemoryStore, req: MemoryFactRequest) -> MemoryFactRecord {
     let now = Utc::now();
+    let ttl_secs = req
+        .ttl_seconds
+        .max(1)
+        .min(MEMORY_FACT_MAX_TTL_SECS);
     let record = MemoryFactRecord {
         id: format!("mem-{}", Uuid::new_v4().simple()),
         fact: redact_text(&req.fact),
@@ -69,7 +74,7 @@ pub fn add_memory_fact(store: &mut MemoryStore, req: MemoryFactRequest) -> Memor
         source_sha256: sha256_text(&req.source),
         sensitivity: req.sensitivity,
         created_at: now,
-        expires_at: now + Duration::seconds(req.ttl_seconds.max(1)),
+        expires_at: now + Duration::seconds(ttl_secs),
         relevance: req.relevance.clamp(0.0, 1.0),
         invalidated: false,
         trust_role: "untrusted_observation".to_string(),

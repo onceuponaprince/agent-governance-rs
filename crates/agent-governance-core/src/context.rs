@@ -1,9 +1,11 @@
 use crate::redaction::{redact_text, sha256_text};
+use crate::secrets::CONTEXT_ENVELOPE_MAX_TTL_SECS;
 use chrono::{DateTime, Duration, Utc};
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sha2::Sha256;
+use sha2::{Digest, Sha256};
+use subtle::ConstantTimeEq;
 use uuid::Uuid;
 
 type HmacSha256 = Hmac<Sha256>;
@@ -64,8 +66,10 @@ pub enum ContextError {
     InvalidFacts,
     #[error("confidence must be between 0.0 and 1.0")]
     InvalidConfidence,
-    #[error("ttl_seconds must be between 1 and 86400")]
+    #[error("ttl_seconds must be between 1 and {}", crate::secrets::CONTEXT_ENVELOPE_MAX_TTL_SECS)]
     InvalidTtl,
+    #[error("invalid signing secret length for HMAC")]
+    InvalidSigningKey,
     #[error("failed to serialize envelope: {0}")]
     Serialize(#[from] serde_json::Error),
 }
@@ -80,7 +84,7 @@ pub fn create_context_envelope(
     if !(0.0..=1.0).contains(&req.confidence) {
         return Err(ContextError::InvalidConfidence);
     }
-    if !(1..=86_400).contains(&req.ttl_seconds) {
+    if !(1..=CONTEXT_ENVELOPE_MAX_TTL_SECS).contains(&req.ttl_seconds) {
         return Err(ContextError::InvalidTtl);
     }
     let issued_at = Utc::now();
@@ -109,7 +113,9 @@ pub fn verify_context_envelope(
     secret: &str,
 ) -> Result<ContextVerifyResponse, ContextError> {
     let expected = sign_envelope(envelope, secret)?;
-    let signature_valid = constant_time_eq(envelope.signature.as_bytes(), expected.as_bytes());
+    let digest_actual = Sha256::digest(envelope.signature.as_bytes());
+    let digest_expected = Sha256::digest(expected.as_bytes());
+    let signature_valid = bool::from(digest_actual.ct_eq(&digest_expected));
     let expired = envelope.expires_at <= Utc::now();
     Ok(ContextVerifyResponse {
         valid: signature_valid && !expired,
@@ -124,7 +130,8 @@ fn sign_envelope(envelope: &ContextEnvelope, secret: &str) -> Result<String, Con
         map.remove("signature");
     }
     let canonical = serde_json::to_vec(&sort_json(body))?;
-    let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).expect("HMAC accepts any key");
+    let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+        .map_err(|_| ContextError::InvalidSigningKey)?;
     mac.update(&canonical);
     Ok(hex::encode(mac.finalize().into_bytes()))
 }
@@ -141,13 +148,6 @@ fn sort_json(value: Value) -> Value {
         Value::Array(items) => Value::Array(items.into_iter().map(sort_json).collect()),
         other => other,
     }
-}
-
-fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-    if a.len() != b.len() {
-        return false;
-    }
-    a.iter().zip(b).fold(0, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
 fn default_confidence() -> f32 {

@@ -28,6 +28,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sha2",
+ "subtle",
  "thiserror",
  "uuid",
 ]
@@ -43,7 +44,9 @@ dependencies = [
  "clap",
  "serde",
  "serde_json",
+ "sha2",
  "sqlx",
+ "subtle",
  "tempfile",
  "tokio",
  "tower",
