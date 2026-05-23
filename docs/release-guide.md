@@ -305,8 +305,8 @@ AGENT_GOV_TOKEN=dev-token cargo run -p agent-governance-cli --bin agent-governan
 In another terminal:
 
 ```bash
-curl -sS http://127.0.0.1:8787/health
-curl -sS http://127.0.0.1:8787/v1/council/personas \
+curl -sS http://127.0.0.1:9797/health
+curl -sS http://127.0.0.1:9797/v1/council/personas \
   -H 'Authorization: Bearer dev-token' | head
 ```
 

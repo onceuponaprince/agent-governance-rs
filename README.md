@@ -52,7 +52,7 @@ cargo run -p agent-governance-cli --bin agent-governance -- council run --file e
 cargo run -p agent-governance-cli --bin agent-governance -- council run --file examples/architecture-council/custom-llms.json
 cargo run -p agent-governance-cli --bin agent-governance -- context sign --file examples/context-envelope/facts.json
 cargo run -p agent-governance-cli --bin agent-governance -- fanout plan --file examples/living-research/fanout.json
-AGENT_GOV_TOKEN=dev-token cargo run -p agent-governance-cli --bin agent-governance -- server --db ./agent-governance.sqlite
+AGENT_GOV_TOKEN=dev-token cargo run -p agent-governance-cli --bin agent-governance -- server --bind 127.0.0.1:9797 --db ./agent-governance.sqlite
 ```
 
 Server APIs include:
@@ -68,8 +68,11 @@ Server APIs include:
 - `POST /v1/memory/invalidations`
 - `POST /v1/tools/results`
 - `GET /v1/tools/rank`
+- `GET /v1/tools/{name}`
 - `POST /v1/repair/plans`
 - `POST /v1/fanout/plans`
+- `GET /v1/fanout/plans/{id}`
+- `GET /v1/fanout/plans/{id}/report.md`
 
 ## Reference Fanout Sources
 
@@ -86,6 +89,8 @@ See `docs/reference-adapters.md` and `examples/living-research/fanout.json`.
 
 For the public GitHub release process, use `docs/release-guide.md`.
 For the validation pass before publishing, use `docs/qa-guide.md`.
+For a human-facing usability pass, use `docs/usability-qa-guide.md`.
+For implementation sweep notes and follow-up watchlist, use `docs/project-sweep.md`.
 
 ## Disclaimers
 
