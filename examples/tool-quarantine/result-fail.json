@@ -1,0 +1,7 @@
+{
+  "name": "browser_ask",
+  "ok": false,
+  "latency_ms": 5000,
+  "risk": 0.8,
+  "error": "login required"
+}

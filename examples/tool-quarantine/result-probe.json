@@ -1,0 +1,6 @@
+{
+  "name": "browser_ask",
+  "ok": true,
+  "latency_ms": 1200,
+  "probe": true
+}

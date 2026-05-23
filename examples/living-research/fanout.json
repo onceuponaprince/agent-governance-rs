@@ -1,0 +1,43 @@
+{
+  "title": "Living research fanout",
+  "prompt": "Compare the latest evidence across browser, CLI, API, and research-store sources. Return disagreements and citations where adapters provide them.",
+  "timeout_seconds": 600,
+  "sources": [
+    {
+      "lane": "app",
+      "name": "living-research",
+      "endpoint": null,
+      "provider": null,
+      "workspace": null,
+      "model": null,
+      "adapter": "living_research"
+    },
+    {
+      "lane": "browser",
+      "name": "claude-browser",
+      "endpoint": "http://browser-bot:5500",
+      "provider": "claude",
+      "workspace": "default",
+      "model": null,
+      "adapter": "browser_bot"
+    },
+    {
+      "lane": "cli",
+      "name": "codex-cli-runner",
+      "endpoint": "http://cli-runner:5600/exec",
+      "provider": "codex",
+      "workspace": null,
+      "model": null,
+      "adapter": "cli_runner_api"
+    },
+    {
+      "lane": "api",
+      "name": "openrouter-api",
+      "endpoint": null,
+      "provider": "openrouter",
+      "workspace": null,
+      "model": "default",
+      "adapter": "open_ai_compatible"
+    }
+  ]
+}

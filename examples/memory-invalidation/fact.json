@@ -1,0 +1,7 @@
+{
+  "fact": "The old provider URL is https://example.invalid/old",
+  "source": "doc://provider-old",
+  "sensitivity": "internal",
+  "ttl_seconds": 86400,
+  "relevance": 0.9
+}

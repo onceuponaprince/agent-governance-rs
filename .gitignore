@@ -1,0 +1,35 @@
+# Rust build output
+target/
+
+# Local environment and secret material
+.env
+.env.*
+*.env
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.cert
+*.crt
+credentials.json
+secrets.json
+secret.json
+*.secrets.json
+*.secret.json
+
+# Local SQLite and runtime state
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.sqlite-shm
+*.sqlite-wal
+*.log
+
+# Local QA/evidence output
+qa-evidence/
+release-evidence/
+agent-governance.sqlite

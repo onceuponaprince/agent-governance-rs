@@ -1,0 +1,47 @@
+{
+  "title": "Architecture council with custom LLMs",
+  "problem": "Should each council member use a different execution lane for this review?",
+  "mode": "duo",
+  "domain": "architecture",
+  "llms": [
+    {
+      "name": "fast-api",
+      "lane": "api",
+      "provider": "openrouter",
+      "model": "example/fast-reviewer",
+      "endpoint": "https://openrouter.ai/api/v1",
+      "workspace": null,
+      "temperature": 0.1,
+      "max_tokens": 2048,
+      "metadata": {
+        "purpose": "fast architectural pass"
+      }
+    },
+    {
+      "name": "browser-reference",
+      "lane": "browser",
+      "provider": "claude",
+      "model": null,
+      "endpoint": "http://browser-bot:5500",
+      "workspace": "default",
+      "temperature": null,
+      "max_tokens": null,
+      "metadata": {
+        "purpose": "browser lane comparison"
+      }
+    }
+  ],
+  "default_llm": "fast-api",
+  "members": [
+    {
+      "name": "aristotle",
+      "llm": "fast-api"
+    },
+    {
+      "name": "ada",
+      "llm": "browser-reference"
+    }
+  ],
+  "consensus_threshold": 0.67,
+  "positions": []
+}

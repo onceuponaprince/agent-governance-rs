@@ -1,0 +1,12 @@
+{
+  "facts": [
+    "browser-bot claude workspace returned a response with no citations",
+    "Authorization: Bearer secret-token-value must be redacted"
+  ],
+  "source": "browser-bot:claude/default",
+  "confidence": 0.74,
+  "ttl_seconds": 3600,
+  "sensitivity": "sensitive",
+  "provider_boundary": "claude",
+  "trust_role": "untrusted_observation"
+}
