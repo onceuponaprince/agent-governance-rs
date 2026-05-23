@@ -7,7 +7,7 @@ Originally extracted from Borai's agent infrastructure, this repo keeps Borai, b
 ## Packages
 
 - `agent-governance-core`: pure Rust types and logic. Council members, domains, and prompt templates are loaded from JSON or Markdown frontmatter packs.
-- `agent-governance-server`: Axum server exposing stable `/v1/*` APIs. Bearer auth is required by default with `AGENT_GOV_TOKEN`; use `--dev-no-auth` only for local demos.
+- `agent-governance-server`: Axum server exposing stable `/v1/*` APIs. Bearer auth is required by default with `AGENT_GOV_TOKEN`. Secure defaults refuse `dev-token` / `dev-context-secret` unless you pass `--dev` or set `AGENT_GOV_DEV=1`; `--dev-no-auth` only works together with dev mode.
 - `agent-governance-cli`: app package with `agent-governance` plus the `living-research` binary alias.
 
 ## Dynamic Council Packs
@@ -52,7 +52,7 @@ cargo run -p agent-governance-cli --bin agent-governance -- council run --file e
 cargo run -p agent-governance-cli --bin agent-governance -- council run --file examples/architecture-council/custom-llms.json
 cargo run -p agent-governance-cli --bin agent-governance -- context sign --file examples/context-envelope/facts.json
 cargo run -p agent-governance-cli --bin agent-governance -- fanout plan --file examples/living-research/fanout.json
-AGENT_GOV_TOKEN=dev-token cargo run -p agent-governance-cli --bin agent-governance -- server --bind 127.0.0.1:9797 --db ./agent-governance.sqlite
+AGENT_GOV_TOKEN=dev-token AGENT_GOV_DEV=1 cargo run -p agent-governance-cli --bin agent-governance -- server --bind 127.0.0.1:9797 --dev --db ./agent-governance.sqlite
 ```
 
 Server APIs include:

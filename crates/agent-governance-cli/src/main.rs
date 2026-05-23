@@ -1,7 +1,7 @@
 use agent_governance_core::{
     create_context_envelope, default_council_pack, deliberate_with_pack, envelope_json,
-    load_council_pack_from_path, persona_catalog_from_pack, planned_fanout, ContextEnvelopeRequest,
-    CouncilPack, FanoutRequest,
+    load_council_pack_from_path, persona_catalog_from_pack, planned_fanout,
+    normalize_dev_mode, ContextEnvelopeRequest, CouncilPack, FanoutRequest, DEV_CONTEXT_SECRET,
 };
 use agent_governance_server::{serve, sqlite_database_url, AppConfig, DEFAULT_BIND_ADDR};
 use anyhow::Context;
@@ -54,6 +54,8 @@ enum ContextCommand {
         file: PathBuf,
         #[arg(long, env = "AGENT_GOV_CONTEXT_SECRET")]
         secret: Option<String>,
+        #[arg(long)]
+        dev: bool,
     },
 }
 
@@ -79,6 +81,8 @@ struct ServerArgs {
     council_pack: Option<PathBuf>,
     #[arg(long)]
     dev_no_auth: bool,
+    #[arg(long)]
+    dev: bool,
 }
 
 #[tokio::main]
@@ -96,10 +100,21 @@ async fn main() -> anyhow::Result<()> {
             print_json(&deliberate_with_pack(req, &pack)?)?;
         }
         Command::Context {
-            command: ContextCommand::Sign { file, secret },
+            command: ContextCommand::Sign {
+                file,
+                secret,
+                dev,
+            },
         } => {
             let req: ContextEnvelopeRequest = read_json(&file)?;
-            let secret = secret.unwrap_or_else(|| "dev-context-secret".to_string());
+            let dev_mode = normalize_dev_mode(dev);
+            let secret = match (secret, dev_mode) {
+                (Some(s), _) => s,
+                (None, true) => DEV_CONTEXT_SECRET.to_string(),
+                (None, false) => anyhow::bail!(
+                    "pass --secret or enable dev placeholders (--dev / AGENT_GOV_DEV)",
+                ),
+            };
             let envelope = create_context_envelope(req, &secret)?;
             print_json(&envelope_json(&envelope))?;
         }
@@ -114,14 +129,17 @@ async fn main() -> anyhow::Result<()> {
                 .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
                 .init();
             let database_url = args.db.map(sqlite_database_url);
-            let context_secret = args
-                .context_secret
-                .or_else(|| args.token.clone())
-                .unwrap_or_else(|| "dev-context-secret".to_string());
+            let dev_mode = normalize_dev_mode(args.dev);
+            let context_secret = resolved_server_context_material(
+                args.context_secret.clone(),
+                args.token.clone(),
+                dev_mode,
+            )?;
             serve(
                 AppConfig {
                     token: args.token,
                     dev_no_auth: args.dev_no_auth,
+                    dev_mode,
                     context_secret,
                     database_url,
                     council_pack_path: args.council_pack,
@@ -132,6 +150,21 @@ async fn main() -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+fn resolved_server_context_material(
+    context_secret_cli: Option<String>,
+    token: Option<String>,
+    dev_mode: bool,
+) -> anyhow::Result<String> {
+    Ok(match (context_secret_cli, token.clone()) {
+        (Some(secret), _) => secret,
+        (None, Some(t)) => t,
+        (None, None) if dev_mode => DEV_CONTEXT_SECRET.to_string(),
+        (None, None) => anyhow::bail!(
+            "AGENT_GOV_CONTEXT_SECRET or AGENT_GOV_TOKEN required unless dev mode (--dev / AGENT_GOV_DEV)",
+        ),
+    })
 }
 
 fn load_pack(path: Option<PathBuf>) -> anyhow::Result<CouncilPack> {
