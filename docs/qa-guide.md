@@ -14,18 +14,18 @@ Validate that the release is source-clean, reproducible, documented, secure by d
 - `python3` for small JSON extraction checks.
 - Playwright browser access, for example `npx playwright open`, Playwright MCP, or another browser automation runner that can capture screenshots.
 - A clean workspace with no generated `target/` directory inside the release tree.
-- Expected local repo path:
+- Expected working directory: clone of this repository (any path).
 
 ```bash
-cd /home/onceuponaprince/code/borai/ops/borai-cc/agent-governance-rs
+cd /path/to/agent-governance-rs
 ```
 
-Expected result: `pwd` prints the `agent-governance-rs` path, and `git status --short` has no unexpected edits for the release copy.
+Expected result: `pwd` shows your checkout of `agent-governance-rs`, and `git status --short` has no unexpected edits for the release copy.
 
 Create an evidence directory for terminal output and browser screenshots:
 
 ```bash
-export QA_EVIDENCE=/tmp/agent-governance-rs-v0.1.0-qa
+export QA_EVIDENCE=/tmp/agent-governance-rs-qa
 mkdir -p "$QA_EVIDENCE"
 ```
 
@@ -169,12 +169,13 @@ Expected result: prints `fanout planning is non-executing`.
 Start the server in one terminal:
 
 ```bash
-AGENT_GOV_TOKEN=dev-token \
+AGENT_GOV_DEV=1 AGENT_GOV_TOKEN=dev-token \
 cargo run -p agent-governance-cli --bin agent-governance -- server \
-  --bind 127.0.0.1:9797
+  --bind 127.0.0.1:9797 \
+  --dev
 ```
 
-Expected result: server logs that it is listening on `http://127.0.0.1:9797`.
+Expected result: server logs listening URL, `/health`, and auth/storage hints (`http://127.0.0.1:9797`).
 
 In a second terminal, verify health and auth behavior:
 
@@ -189,7 +190,7 @@ curl -sS http://127.0.0.1:9797/v1/council/personas \
   | tee "$QA_EVIDENCE/api-personas.json"
 ```
 
-Expected result: `/health` returns `{"status":"ok"}` without auth, unauthenticated `/v1/council/personas` returns HTTP `401` with `authentication_required`, and the authenticated request returns the persona catalog.
+Expected result: `/health` returns JSON containing `"status":"ok"` without auth (`version`, `api_auth`, and `persist_sqlite` are included for operators), unauthenticated `/v1/council/personas` returns HTTP `401` with `authentication_required`, and the authenticated request returns the persona catalog.
 
 Exercise key `/v1/*` routes:
 
@@ -261,20 +262,18 @@ Start the server with a temporary SQLite database:
 ```bash
 export AGENT_GOV_DB="$QA_EVIDENCE/agent-governance.sqlite"
 rm -f "$AGENT_GOV_DB"
-AGENT_GOV_TOKEN=dev-token \
+AGENT_GOV_DEV=1 AGENT_GOV_TOKEN=dev-token \
 cargo run -p agent-governance-cli --bin agent-governance -- server \
   --bind 127.0.0.1:8790 \
+  --dev \
   --db "$AGENT_GOV_DB"
 ```
 
 Expected result: server starts on `127.0.0.1:8790`, creates the SQLite database, and keeps running.
 
-In a second terminal:
+In a second terminal (reuse `$QA_EVIDENCE` from Prerequisites, or `export QA_EVIDENCE=/tmp/agent-governance-rs-qa`):
 
 ```bash
-cd /home/onceuponaprince/code/borai/ops/borai-cc/agent-governance-rs
-export QA_EVIDENCE=/tmp/agent-governance-rs-v0.1.0-qa
-
 curl -sS http://127.0.0.1:8790/v1/council/deliberations \
   -H 'Authorization: Bearer dev-token' \
   -H 'Content-Type: application/json' \
@@ -304,22 +303,18 @@ Expected result: JSON and Markdown readback succeed before restart.
 Stop the server with `Ctrl-C`, then restart it with the same `--db` path:
 
 ```bash
-cd /home/onceuponaprince/code/borai/ops/borai-cc/agent-governance-rs
-export QA_EVIDENCE=/tmp/agent-governance-rs-v0.1.0-qa
 export AGENT_GOV_DB="$QA_EVIDENCE/agent-governance.sqlite"
 
-AGENT_GOV_TOKEN=dev-token \
+AGENT_GOV_DEV=1 AGENT_GOV_TOKEN=dev-token \
 cargo run -p agent-governance-cli --bin agent-governance -- server \
   --bind 127.0.0.1:8790 \
+  --dev \
   --db "$AGENT_GOV_DB"
 ```
 
-In a separate terminal, read the same records again:
+In a separate terminal, read the same records again (same `$QA_EVIDENCE` as above):
 
 ```bash
-cd /home/onceuponaprince/code/borai/ops/borai-cc/agent-governance-rs
-export QA_EVIDENCE=/tmp/agent-governance-rs-v0.1.0-qa
-
 PERSIST_COUNCIL_ID="$(cat "$QA_EVIDENCE/persist-council-id.txt")"
 
 curl -sS "http://127.0.0.1:8790/v1/council/deliberations/$PERSIST_COUNCIL_ID" \
@@ -413,7 +408,7 @@ curl -sS http://127.0.0.1:9797/v1/context/envelopes/verify \
   | tee "$QA_EVIDENCE/api-envelope-tamper-verify.json"
 ```
 
-Expected result: response contains `valid: false` and `signature_valid: false`. If the API server from the earlier section is not still running, restart it with `AGENT_GOV_TOKEN=dev-token` on port `9797` before running this check.
+Expected result: response contains `valid: false` and `signature_valid: false`. If the API server from the earlier section is not still running, restart it with `AGENT_GOV_DEV=1 AGENT_GOV_TOKEN=dev-token` and `--dev` on port `9797` before running this check.
 
 Validate sandbox-only repair plan defaults:
 
@@ -616,7 +611,7 @@ No-go if any are true:
 ## Common Failure Triage
 
 - `cargo package` misses pack files: add or correct package include metadata before publishing.
-- `curl` returns `503 auth_not_configured`: restart the server with `AGENT_GOV_TOKEN=dev-token` or use `--dev-no-auth` only for explicit local demos, not release QA.
+- `curl` returns `503 auth_not_configured`: set `AGENT_GOV_TOKEN` (production) or restart with dev defaults using `AGENT_GOV_DEV=1`, `--dev`, and `AGENT_GOV_TOKEN=dev-token`. Use `--dev-no-auth` only for explicit local demos, not release QA.
 - `curl` returns `401 authentication_required`: verify the `Authorization: Bearer dev-token` header is present and matches the server token.
 - SQLite readback fails after restart: confirm the same `--db` path was used and the server was stopped cleanly before restart.
 - Playwright screenshots show `404`: confirm the repository was pushed, the branch is `main`, the file exists at the tag or branch, and the repo is public.

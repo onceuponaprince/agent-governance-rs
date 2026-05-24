@@ -11,8 +11,8 @@ Run this pass as someone who did not build the project but understands basic Rus
 Start from a clean shell:
 
 ```bash
-cd /home/onceuponaprince/code/borai/ops/borai-cc/agent-governance-rs
-export QA_EVIDENCE=/tmp/agent-governance-rs-v0.1.0-usability
+cd /path/to/agent-governance-rs
+export QA_EVIDENCE=/tmp/agent-governance-rs-usability
 mkdir -p "$QA_EVIDENCE"
 ```
 
@@ -137,15 +137,16 @@ Start the server in one terminal:
 ```bash
 export AGENT_GOV_DB="$QA_EVIDENCE/usability.sqlite"
 rm -f "$AGENT_GOV_DB"
-AGENT_GOV_TOKEN=dev-token cargo run -q -p agent-governance-cli --bin agent-governance -- server \
+AGENT_GOV_DEV=1 AGENT_GOV_TOKEN=dev-token cargo run -q -p agent-governance-cli --bin agent-governance -- server \
   --bind 127.0.0.1:9797 \
+  --dev \
   --db "$AGENT_GOV_DB"
 ```
 
 In another terminal:
 
 ```bash
-export QA_EVIDENCE=/tmp/agent-governance-rs-v0.1.0-usability
+# Same QA_EVIDENCE as in Setup, or export it again in this terminal.
 curl -sS http://127.0.0.1:9797/health | tee "$QA_EVIDENCE/health.json"
 curl -sS -i http://127.0.0.1:9797/v1/council/personas | tee "$QA_EVIDENCE/auth-rejection.txt"
 curl -sS http://127.0.0.1:9797/v1/council/personas \
@@ -156,7 +157,7 @@ curl -sS http://127.0.0.1:9797/v1/council/personas \
 Pass criteria:
 
 - SQLite file is created automatically.
-- `/health` works without auth.
+- `/health` works without auth and includes operational fields (`version`, `api_auth`).
 - `/v1/*` rejects missing auth with `authentication_required`.
 - The authenticated request returns JSON without extra setup.
 
