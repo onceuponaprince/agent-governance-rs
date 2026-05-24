@@ -242,15 +242,52 @@ pub async fn app(config: AppConfig) -> anyhow::Result<Router> {
 }
 
 pub async fn serve(config: AppConfig, addr: SocketAddr) -> anyhow::Result<()> {
+    let banner_cfg = config.clone();
     let router = app(config).await?;
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    tracing::info!("agent-governance-server listening on http://{addr}");
+    let base_url = format!("http://{}", addr);
+    tracing::info!("agent-governance-server {}", env!("CARGO_PKG_VERSION"));
+    tracing::info!("listening at {base_url}");
+    tracing::info!("GET {base_url}/health — service status (no authentication)");
+    tracing::info!("API  {base_url}/v1 (see README for routes)");
+    if banner_cfg.dev_no_auth {
+        tracing::warn!(
+            "--dev-no-auth: /v1 routes accept requests without Bearer token (development only)",
+        );
+    } else if banner_cfg.token.is_some() {
+        tracing::info!("auth: send `Authorization: Bearer <AGENT_GOV_TOKEN>` on /v1/* requests");
+    } else {
+        tracing::warn!(
+            "no AGENT_GOV_TOKEN configured: /v1/* returns HTTP 503 auth_not_configured until token is set"
+        );
+    }
+    tracing::info!(
+        persistence = if banner_cfg.database_url.is_some() {
+            "SQLite snapshots enabled (--db)"
+        } else {
+            "in-memory only (no --db)"
+        },
+        "storage",
+    );
     axum::serve(listener, router).await?;
     Ok(())
 }
 
-async fn health() -> Json<Value> {
-    Json(json!({"status": "ok"}))
+async fn health(State(state): State<AppState>) -> Json<Value> {
+    let api_auth = if state.config.dev_no_auth {
+        "disabled_dev_no_auth"
+    } else if state.config.token.is_some() {
+        "bearer_configured"
+    } else {
+        "bearer_not_configured"
+    };
+    Json(json!({
+        "status": "ok",
+        "version": env!("CARGO_PKG_VERSION"),
+        "api_auth": api_auth,
+        "apis_prefix": "/v1",
+        "persist_sqlite": state.config.database_url.is_some(),
+    }))
 }
 
 async fn council_personas(
