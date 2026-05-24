@@ -46,13 +46,28 @@ Resolution order is explicit member target, explicit member LLM, member pack tar
 
 ## Quickstart
 
+**Fastest loop (CLI only, no server):**
+
 ```bash
-cargo run -p agent-governance-cli --bin agent-governance -- personas
-cargo run -p agent-governance-cli --bin agent-governance -- council run --file examples/architecture-council/request.json
+cargo run -q -p agent-governance-cli --bin agent-governance -- personas
+cargo run -q -p agent-governance-cli --bin agent-governance -- council run --file examples/architecture-council/request.json
+```
+
+**Local HTTP server:** copy [.env.example](.env.example) and set `AGENT_GOV_DEV=1` plus `AGENT_GOV_TOKEN=dev-token` if you follow the README commands, then:
+
+```bash
+set -a && source .env && set +a   # bash/zsh: load .env.example-derived file
+cargo run -p agent-governance-cli --bin agent-governance -- server --bind 127.0.0.1:9797 --dev --db ./agent-governance.sqlite
+```
+
+Logs print the base URL, `/health`, and whether Bearer auth applies. `GET /health` stays unauthenticated and includes build `version`, `api_auth`, and persistence flags.
+
+**More examples:**
+
+```bash
 cargo run -p agent-governance-cli --bin agent-governance -- council run --file examples/architecture-council/custom-llms.json
-cargo run -p agent-governance-cli --bin agent-governance -- context sign --file examples/context-envelope/facts.json
+cargo run -p agent-governance-cli --bin agent-governance -- context sign --file examples/context-envelope/facts.json --dev
 cargo run -p agent-governance-cli --bin agent-governance -- fanout plan --file examples/living-research/fanout.json
-AGENT_GOV_TOKEN=dev-token AGENT_GOV_DEV=1 cargo run -p agent-governance-cli --bin agent-governance -- server --bind 127.0.0.1:9797 --dev --db ./agent-governance.sqlite
 ```
 
 Server APIs include:
