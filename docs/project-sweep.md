@@ -14,6 +14,8 @@ Reviewed:
 
 ## Fixes Applied
 
+- Added `agent-governance doctor` (lists example/pack paths and copy-paste starters from the CLI).
+- Added `docs/api-cheatsheet.md` with curl-focused `/v1/*` examples aligned to repository `examples/`.
 - Added a human-facing usability QA guide at `docs/usability-qa-guide.md`.
 - Standardized local API QA examples on `127.0.0.1:9797`.
 - Added `AGENT_GOV_DB` support to the `agent-governance server` subcommand.

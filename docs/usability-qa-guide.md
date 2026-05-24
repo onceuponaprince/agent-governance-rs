@@ -169,7 +169,7 @@ Review the repository as if browsing GitHub.
 
 Pass criteria:
 
-- README links to release, technical QA, usability QA, and reference adapter docs.
+- README links to release, technical QA, usability QA, HTTP curl cheatsheet, and reference adapter docs.
 - `docs/release-guide.md` explains publication.
 - `docs/qa-guide.md` explains operator release validation.
 - `docs/usability-qa-guide.md` explains human usability validation.

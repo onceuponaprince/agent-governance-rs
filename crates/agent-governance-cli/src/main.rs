@@ -6,11 +6,12 @@ use agent_governance_core::{
 use agent_governance_server::{serve, sqlite_database_url, AppConfig, DEFAULT_BIND_ADDR};
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use std::{fs, net::SocketAddr, path::PathBuf};
+use std::{fs, net::SocketAddr, path::{Path, PathBuf}};
 
 #[derive(Debug, Parser)]
 #[command(name = "agent-governance")]
 #[command(about = "Local CLI for agent-governance-rs")]
+#[command(after_long_help = "Tip: run `agent-governance doctor` for example paths and copy-paste starters.\nHTTP examples: docs/api-cheatsheet.md (at the repository root).")]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -18,6 +19,8 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    /// Show version, example paths, and copy-paste starters
+    Doctor,
     Personas {
         #[arg(long, env = "AGENT_GOV_COUNCIL_PACK")]
         council_pack: Option<PathBuf>,
@@ -89,6 +92,7 @@ struct ServerArgs {
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
+        Command::Doctor => run_doctor()?,
         Command::Personas { council_pack } => {
             print_json(&persona_catalog_from_pack(&load_pack(council_pack)?))?
         }
@@ -147,6 +151,62 @@ async fn main() -> anyhow::Result<()> {
                 args.bind,
             )
             .await?;
+        }
+    }
+    Ok(())
+}
+
+fn run_doctor() -> anyhow::Result<()> {
+    println!("agent-governance CLI {}", env!("CARGO_PKG_VERSION"));
+    println!();
+    println!("Copy-paste (repository root, CLI only — no server):");
+    println!("  cargo run -q -p agent-governance-cli --bin agent-governance -- personas");
+    println!("  cargo run -q -p agent-governance-cli --bin agent-governance -- council run --file examples/architecture-council/request.json");
+    println!("  cargo run -q -p agent-governance-cli --bin agent-governance -- context sign --file examples/context-envelope/facts.json --dev");
+    println!("  cargo run -q -p agent-governance-cli --bin agent-governance -- fanout plan --file examples/living-research/fanout.json");
+    println!();
+    println!("Dev server (defaults described in README and .env.example):");
+    println!("  AGENT_GOV_DEV=1 AGENT_GOV_TOKEN=dev-token cargo run -p agent-governance-cli --bin agent-governance -- server --bind 127.0.0.1:9797 --dev --db ./agent-governance.sqlite");
+    println!();
+    println!("HTTP smoke check (no auth): curl -sS http://127.0.0.1:9797/health");
+    println!("curl recipes: docs/api-cheatsheet.md");
+    println!();
+    println!("Environment variables: see .env.example");
+    println!();
+    let cwd = std::env::current_dir()?;
+    print_repo_tree("examples", &cwd)?;
+    print_repo_tree("packs", &cwd)?;
+    Ok(())
+}
+
+fn print_repo_tree(subdir: &str, cwd: &Path) -> anyhow::Result<()> {
+    let root = cwd.join(subdir);
+    println!("{subdir}/");
+    if !root.is_dir() {
+        println!("  (missing — run `doctor` from the repository root to list bundled files)");
+        println!();
+        return Ok(());
+    }
+    let mut files = Vec::new();
+    collect_files(&root, &mut files)?;
+    files.sort();
+    for path in files {
+        if let Ok(rel) = path.strip_prefix(cwd) {
+            println!("  {}", rel.display());
+        }
+    }
+    println!();
+    Ok(())
+}
+
+fn collect_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            collect_files(&path, out)?;
+        } else if path.is_file() {
+            out.push(path);
         }
     }
     Ok(())

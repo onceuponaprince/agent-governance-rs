@@ -46,6 +46,8 @@ Resolution order is explicit member target, explicit member LLM, member pack tar
 
 ## Quickstart
 
+From the repository root, **`agent-governance doctor`** prints the CLI version, copy-paste starters, and paths under `examples/` and `packs/`. For raw HTTP, use [docs/api-cheatsheet.md](docs/api-cheatsheet.md).
+
 **Fastest loop (CLI only, no server):**
 
 ```bash
@@ -105,6 +107,7 @@ See `docs/reference-adapters.md` and `examples/living-research/fanout.json`.
 For the public GitHub release process, use `docs/release-guide.md`.
 For the validation pass before publishing, use `docs/qa-guide.md`.
 For a human-facing usability pass, use `docs/usability-qa-guide.md`.
+For `/v1/*` curl snippets, use `docs/api-cheatsheet.md`.
 For implementation sweep notes and follow-up watchlist, use `docs/project-sweep.md`.
 
 ## Disclaimers
