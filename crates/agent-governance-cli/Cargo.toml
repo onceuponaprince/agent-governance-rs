@@ -18,9 +18,11 @@ path = "src/living_research.rs"
 [dependencies]
 agent-governance-core = { workspace = true }
 agent-governance-server = { workspace = true }
+clap_complete = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 tracing-subscriber = { workspace = true }
+sqlx = { workspace = true }

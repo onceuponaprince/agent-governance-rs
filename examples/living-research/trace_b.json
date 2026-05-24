@@ -1,0 +1,19 @@
+{
+  "id": "22222222-2222-2222-2222-222222222222",
+  "timestamp": "2026-05-23T12:00:05Z",
+  "session_id": "living-research-demo",
+  "agent_id": "agent-bravo",
+  "model": "gpt-demo-b",
+  "prompt": "Which option is better: A or B? Argue for B.",
+  "context_snapshot": {"topic": "choice"},
+  "intermediate_steps": [
+    {"step_id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "step_type": "chain_of_thought", "content": "Option B reduces latency due to Y.", "timestamp": "2026-05-23T12:00:06Z", "score": 0.7}
+  ],
+  "decision": {"action": "choose B", "chosen_by": "agent-bravo", "alternatives": [{"action":"choose A","score":0.3}, {"action":"choose B","score":0.7}]},
+  "rationale": "B improves latency and user experience.",
+  "confidence": 0.85,
+  "tags": ["demo","debate","B"],
+  "provenance": {"source_ids": [], "parent_trace": null},
+  "embedding": null,
+  "metadata": {}
+}

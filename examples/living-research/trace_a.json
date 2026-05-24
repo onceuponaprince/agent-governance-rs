@@ -1,0 +1,19 @@
+{
+  "id": "11111111-1111-1111-1111-111111111111",
+  "timestamp": "2026-05-23T12:00:00Z",
+  "session_id": "living-research-demo",
+  "agent_id": "agent-alpha",
+  "model": "gpt-demo-a",
+  "prompt": "Which option is better: A or B? Argue for A.",
+  "context_snapshot": {"topic": "choice"},
+  "intermediate_steps": [
+    {"step_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "step_type": "chain_of_thought", "content": "Option A scales better due to X.", "timestamp": "2026-05-23T12:00:01Z", "score": 0.8}
+  ],
+  "decision": {"action": "choose A", "chosen_by": "agent-alpha", "alternatives": [{"action":"choose A","score":0.9}, {"action":"choose B","score":0.1}]},
+  "rationale": "A has lower cost and higher throughput.",
+  "confidence": 0.9,
+  "tags": ["demo","debate","A"],
+  "provenance": {"source_ids": [], "parent_trace": null},
+  "embedding": null,
+  "metadata": {}
+}

@@ -1,7 +1,13 @@
 pub mod context;
 pub mod council;
+pub mod embedding;
+pub mod embedding_provider;
 pub mod fanout;
 pub mod memory;
+pub mod persistent_hnsw;
+pub mod reasoning;
+pub mod reasoning_store_jsonl;
+pub mod reasoning_store_sqlite;
 pub mod redaction;
 pub mod repair;
 pub mod secrets;
@@ -9,8 +15,14 @@ pub mod tools;
 
 pub use context::*;
 pub use council::*;
+pub use embedding::*;
+pub use embedding_provider::*;
 pub use fanout::*;
 pub use memory::*;
+pub use persistent_hnsw::*;
+pub use reasoning::*;
+pub use reasoning_store_jsonl::*;
+pub use reasoning_store_sqlite::*;
 pub use repair::*;
 pub use secrets::*;
 pub use tools::*;

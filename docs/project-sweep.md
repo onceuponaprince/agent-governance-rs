@@ -41,12 +41,12 @@ Reviewed:
 
 ## Watchlist For Later Releases
 
-- Add a dedicated `agent-governance council submit-positions` command so operators do not need to hand-edit JSON for the second council pass.
-- Add an API route for listing recent deliberations/fanout plans when SQLite is enabled.
-- Add optional hydration of memory/tool event state from SQLite on startup if those stores become operational state rather than audit trails.
-- Add JSON schema files or generated OpenAPI documentation for `/v1/*` request bodies.
-- Add clearer command examples for creating custom council packs from scratch.
-- Add CI before tagging public releases.
+- Completed: dedicated `agent-governance council submit-positions` command for second-pass position submission.
+- Completed: API routes for listing recent deliberations and fanout plans when SQLite is enabled.
+- Completed: optional hydration of memory/tool operational state from SQLite on startup (`AGENT_GOV_HYDRATE_STATE=true`).
+- Completed: JSON schema generation command and generated schema files under `schemas/`.
+- Completed: clearer custom council pack examples in the README.
+- Completed: CI workflow added before tagging public releases.
 
 ## No Blocking Dangling Implementations Found
 

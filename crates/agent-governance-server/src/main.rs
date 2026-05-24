@@ -1,5 +1,4 @@
-use agent_governance_core::{normalize_dev_mode, DEV_CONTEXT_SECRET};
-use agent_governance_server::{serve, sqlite_database_url, AppConfig, DEFAULT_BIND_ADDR};
+use agent_governance_server::{serve, sqlite_database_url_from_path, AppConfig, DEFAULT_BIND_ADDR};
 use clap::Parser;
 use std::{net::SocketAddr, path::PathBuf};
 
@@ -17,10 +16,16 @@ struct Args {
     context_secret: Option<String>,
     #[arg(long, env = "AGENT_GOV_COUNCIL_PACK")]
     council_pack: Option<PathBuf>,
+    #[arg(long, env = "AGENT_GOV_HYDRATE_STATE", default_value_t = false)]
+    hydrate_state_from_db: bool,
+    #[arg(long, env = "AGENT_GOV_EMBED_ENDPOINT")]
+    embedding_endpoint: Option<String>,
+    #[arg(long, env = "AGENT_GOV_EMBED_API_KEY")]
+    embedding_api_key: Option<String>,
+    #[arg(long, env = "AGENT_GOV_EMBED_DIM", default_value_t = 128)]
+    embedding_dim: usize,
     #[arg(long)]
     dev_no_auth: bool,
-    #[arg(long)]
-    dev: bool,
 }
 
 #[tokio::main]
@@ -29,37 +34,24 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
     let args = Args::parse();
-    let dev_mode = normalize_dev_mode(args.dev);
-
+    let database_url = args.db.map(sqlite_database_url_from_path).transpose()?;
+    let context_secret = args
+        .context_secret
+        .or_else(|| args.token.clone())
+        .unwrap_or_else(|| "dev-context-secret".to_string());
     serve(
         AppConfig {
-            token: args.token.clone(),
+            token: args.token,
             dev_no_auth: args.dev_no_auth,
-            dev_mode,
-            context_secret: resolve_context_material(
-                args.context_secret.clone(),
-                args.token.clone(),
-                dev_mode,
-            )?,
-            database_url: args.db.map(sqlite_database_url),
+            context_secret,
+            database_url,
             council_pack_path: args.council_pack,
+            hydrate_state_from_db: args.hydrate_state_from_db,
+            embedding_endpoint: args.embedding_endpoint,
+            embedding_api_key: args.embedding_api_key,
+            embedding_dim: args.embedding_dim,
         },
         args.bind,
     )
     .await
-}
-
-fn resolve_context_material(
-    context_secret_cli: Option<String>,
-    token: Option<String>,
-    dev_mode: bool,
-) -> anyhow::Result<String> {
-    Ok(match (context_secret_cli, token.clone()) {
-        (Some(secret), _) => secret,
-        (None, Some(t)) => t,
-        (None, None) if dev_mode => DEV_CONTEXT_SECRET.to_string(),
-        (None, None) => anyhow::bail!(
-            "AGENT_GOV_CONTEXT_SECRET or AGENT_GOV_TOKEN is required unless dev mode (--dev / AGENT_GOV_DEV)",
-        ),
-    })
 }

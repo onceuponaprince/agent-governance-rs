@@ -1,0 +1,17 @@
+{
+  "id": "33333333-3333-3333-3333-333333333333",
+  "timestamp": "2026-05-23T12:01:00Z",
+  "session_id": "living-research-demo",
+  "agent_id": "agent-alpha-vec",
+  "model": "gpt-demo-a",
+  "prompt": "Vector trace A",
+  "context_snapshot": null,
+  "intermediate_steps": [],
+  "decision": {"action": "choose A", "chosen_by": "agent-alpha-vec", "alternatives": []},
+  "rationale": "vec A",
+  "confidence": 0.9,
+  "tags": ["vec"],
+  "provenance": {"source_ids": [], "parent_trace": null},
+  "embedding": [0.0, 1.0, 0.0],
+  "metadata": {}
+}

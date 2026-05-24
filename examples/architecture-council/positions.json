@@ -1,0 +1,26 @@
+[
+  {
+    "member": "aristotle",
+    "position": "Ship behind a feature flag and measure regressions.",
+    "vote": "yes",
+    "confidence": 0.82,
+    "dissent": [],
+    "unresolved_questions": ["What is the rollback SLO?"]
+  },
+  {
+    "member": "ada",
+    "position": "Require test evidence before broad rollout.",
+    "vote": "yes",
+    "confidence": 0.77,
+    "dissent": [],
+    "unresolved_questions": ["Do we have a load-test baseline?"]
+  },
+  {
+    "member": "feynman",
+    "position": "Do not ship without validating failure paths.",
+    "vote": "no",
+    "confidence": 0.66,
+    "dissent": ["No failure-injection run attached."],
+    "unresolved_questions": ["What happens when cache is unavailable?"]
+  }
+]

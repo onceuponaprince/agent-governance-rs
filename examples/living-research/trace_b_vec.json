@@ -1,0 +1,17 @@
+{
+  "id": "44444444-4444-4444-4444-444444444444",
+  "timestamp": "2026-05-23T12:01:05Z",
+  "session_id": "living-research-demo",
+  "agent_id": "agent-bravo-vec",
+  "model": "gpt-demo-b",
+  "prompt": "Vector trace B",
+  "context_snapshot": null,
+  "intermediate_steps": [],
+  "decision": {"action": "choose B", "chosen_by": "agent-bravo-vec", "alternatives": []},
+  "rationale": "vec B",
+  "confidence": 0.85,
+  "tags": ["vec"],
+  "provenance": {"source_ids": [], "parent_trace": null},
+  "embedding": [1.0, 0.0, 0.0],
+  "metadata": {}
+}
