@@ -66,7 +66,10 @@ pub enum ContextError {
     InvalidFacts,
     #[error("confidence must be between 0.0 and 1.0")]
     InvalidConfidence,
-    #[error("ttl_seconds must be between 1 and {}", crate::secrets::CONTEXT_ENVELOPE_MAX_TTL_SECS)]
+    #[error(
+        "ttl_seconds must be between 1 and {}",
+        crate::secrets::CONTEXT_ENVELOPE_MAX_TTL_SECS
+    )]
     InvalidTtl,
     #[error("invalid signing secret length for HMAC")]
     InvalidSigningKey,

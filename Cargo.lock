@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "agent-governance-cli"
-version = "0.1.0"
+version = "0.1.3"
 dependencies = [
  "agent-governance-core",
  "agent-governance-server",
@@ -20,7 +20,7 @@ dependencies = [
 
 [[package]]
 name = "agent-governance-core"
-version = "0.1.0"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -34,6 +34,7 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "sqlx",
+ "subtle",
  "tempfile",
  "thiserror",
  "tokio",
@@ -42,7 +43,7 @@ dependencies = [
 
 [[package]]
 name = "agent-governance-server"
-version = "0.1.0"
+version = "0.1.3"
 dependencies = [
  "agent-governance-core",
  "anyhow",
@@ -51,7 +52,9 @@ dependencies = [
  "clap",
  "serde",
  "serde_json",
+ "sha2",
  "sqlx",
+ "subtle",
  "tempfile",
  "tokio",
  "tower",

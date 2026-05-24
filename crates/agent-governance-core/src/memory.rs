@@ -62,10 +62,7 @@ pub struct MemoryStore {
 
 pub fn add_memory_fact(store: &mut MemoryStore, req: MemoryFactRequest) -> MemoryFactRecord {
     let now = Utc::now();
-    let ttl_secs = req
-        .ttl_seconds
-        .max(1)
-        .min(MEMORY_FACT_MAX_TTL_SECS);
+    let ttl_secs = req.ttl_seconds.clamp(1, MEMORY_FACT_MAX_TTL_SECS);
     let record = MemoryFactRecord {
         id: format!("mem-{}", Uuid::new_v4().simple()),
         fact: redact_text(&req.fact),

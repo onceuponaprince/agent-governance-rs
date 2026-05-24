@@ -499,7 +499,7 @@ fn split_frontmatter(text: &str) -> Result<(String, String), CouncilError> {
     })?;
     Ok((
         frontmatter.to_string(),
-        body.trim_start_matches(|c| c == '\n' || c == '\r').to_string(),
+        body.trim_start_matches(&['\n', '\r'][..]).to_string(),
     ))
 }
 
