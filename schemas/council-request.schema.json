@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "consensus_threshold": {
+      "type": "number"
+    },
+    "domain": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "mode": {
+      "enum": [
+        "quick",
+        "duo",
+        "full"
+      ],
+      "type": "string"
+    },
+    "positions": {
+      "type": "array"
+    },
+    "problem": {
+      "type": "string"
+    },
+    "title": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "problem"
+  ],
+  "title": "CouncilRequest",
+  "type": "object"
+}

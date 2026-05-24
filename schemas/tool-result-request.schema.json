@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "cost": {
+      "type": "number"
+    },
+    "latency_ms": {
+      "type": "integer"
+    },
+    "name": {
+      "type": "string"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "risk": {
+      "type": "number"
+    }
+  },
+  "required": [
+    "name",
+    "ok"
+  ],
+  "title": "ToolResultRequest",
+  "type": "object"
+}

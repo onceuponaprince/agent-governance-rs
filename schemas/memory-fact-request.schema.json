@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "fact": {
+      "type": "string"
+    },
+    "relevance": {
+      "type": "number"
+    },
+    "source": {
+      "type": "string"
+    },
+    "ttl_seconds": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "fact",
+    "source"
+  ],
+  "title": "MemoryFactRequest",
+  "type": "object"
+}

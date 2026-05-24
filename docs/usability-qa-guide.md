@@ -132,6 +132,8 @@ Fail criteria:
 
 ## Server First-Run Usability
 
+Note: the server will create a SQLite database file at `$QA_EVIDENCE/usability.sqlite` when started with the `--db` flag below. This file is for local usability evidence only; you can remove it after the check with `rm -f "$QA_EVIDENCE/usability.sqlite"`.
+
 Start the server in one terminal:
 
 ```bash

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "goal": {
+      "type": "string"
+    },
+    "sources": {
+      "type": "array"
+    }
+  },
+  "required": [
+    "goal"
+  ],
+  "title": "FanoutRequest",
+  "type": "object"
+}
